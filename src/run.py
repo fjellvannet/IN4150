@@ -5,6 +5,7 @@ from ipv8.configuration import ConfigBuilder, default_bootstrap_defs
 from ipv8.util import create_event_with_signals
 from ipv8_service import IPv8
 from algorithms import *
+from src.da_types import DistributedAlgorithm
 
 
 def get_algorithm(name: str) -> DistributedAlgorithm:

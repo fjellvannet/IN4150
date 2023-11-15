@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "assignment"
+version = "0.1.0"
+description = ""
+authors = ["Lukas Neuenschwander <lukas.neu24@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.9"
+jsonpickle = "^3.0.2"
+aiohttp = "^3.9rc0"
+trio = ">=0.14.0"
+pyipv8 = "^2.12"
+pyyaml = "^6.0.1"
+setuptools = "^68.2.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

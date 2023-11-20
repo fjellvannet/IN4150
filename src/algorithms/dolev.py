@@ -1,6 +1,7 @@
 import asyncio
 import json
 import random
+import yaml
 
 from ipv8.messaging.payload_dataclass import overwrite_dataclass
 from dataclasses import dataclass, field
@@ -19,7 +20,7 @@ class Message:
     # I wanted Tuple[Int] as a type here. According to
     # https://py-ipv8.readthedocs.io/en/latest/reference/serialization.html that should be possible, however it always
     # returned errors, which I only managed to resolve using json serialization and deserialization.
-    path: str = "\"[]\""
+    path: str = '"[]"'
 
 
 class DolevProtocol(DistributedAlgorithm):
@@ -37,12 +38,16 @@ class DolevProtocol(DistributedAlgorithm):
         self.max_fault = 1
 
     async def on_start(self):
-        # Have 0 broadcast a message.
-        if self.node_id == 0:
-            message = Message("Hello there!")
-            self.status("Broadcasting", message.message)
-            await self.broadcast(message)
-            self.deliver(self.node_id, message)
+        # read what to send
+        with open("messages/dolev.yaml", "r") as f:
+            msgs = yaml.safe_load(f)
+            for msg in msgs[self.node_id]:
+                snd = self.send_after(Message(msg.message), msg.timeout)
+
+    async def send_after(self, msg: Message, timeout: int):
+        await asyncio.sleep(timeout)
+        for node in self.nodes.items():
+            self.ez_send(node, msg)
 
     async def broadcast(self, payload: Message):
         path = json.loads(payload.path)
@@ -55,7 +60,7 @@ class DolevProtocol(DistributedAlgorithm):
         if (sender_id, payload.message) not in self.delivered:
             self.status(
                 f"\033[1;32;48mDelivered from Node {sender_id}",
-                f"{payload.message} {self.paths.pop((sender_id, payload.message), set())}"
+                f"{payload.message} {self.paths.pop((sender_id, payload.message), set())}",
             )
             self.delivered.add((sender_id, payload.message))
             self.stop()
@@ -65,11 +70,16 @@ class DolevProtocol(DistributedAlgorithm):
         peer.id = self.node_id_from_peer(peer)
         path = (*json.loads(payload.path), peer.id)
         if len(path) == 1:
-            self.status(f"Received message directly from node {peer.id}", f"{payload.message}")
+            self.status(
+                f"Received message directly from node {peer.id}", f"{payload.message}"
+            )
             await self.broadcast(Message(payload.message, json.dumps(path)))
             self.deliver(path[0], payload)
         elif len(set(path)) == len(path):  # there are no duplicate nodes in the path
-            self.status(f"Received message from node {peer.id}", f"{payload.message} {payload.path}")
+            self.status(
+                f"Received message from node {peer.id}",
+                f"{payload.message} {payload.path}",
+            )
             path_key = (path[0], payload.message)
             if path_key in self.paths:
                 self.paths[path_key].add(path)
@@ -83,7 +93,10 @@ class DolevProtocol(DistributedAlgorithm):
                 self.paths[path_key] = {path}
                 await self.broadcast(Message(payload.message, json.dumps(path)))
         else:
-            self.status(f"\033[1;31;48mReceived erroneous message \"{payload.message}\" with duplicate nodes in path", str(path))
+            self.status(
+                f'\033[1;31;48mReceived erroneous message "{payload.message}" with duplicate nodes in path',
+                str(path),
+            )
 
     def status(self, description: str, content: str = ""):
         print(f"[Node {self.node_id}] {description}{f': {content}' if content else ''}")

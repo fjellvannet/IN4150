@@ -34,6 +34,7 @@ class DolevProtocol(DistributedAlgorithm):
         self.add_message_handler(Message, self.on_message)
         self.paths = {}
         self.delivered = set()
+        self.trusted_neighbours = set()
         self.max_fault = 1
 
     async def on_start(self):
@@ -41,8 +42,8 @@ class DolevProtocol(DistributedAlgorithm):
         if self.node_id == 0:
             message = Message("Hello there!")
             self.status("Broadcasting", message.message)
+            self.deliver(message)
             await self.broadcast(message)
-            self.deliver(self.node_id, message)
 
     async def broadcast(self, payload: Message):
         path = json.loads(payload.path)
@@ -51,39 +52,44 @@ class DolevProtocol(DistributedAlgorithm):
             self.status(f"Sending to {node_id}", f"{payload.message} {payload.path}")
             self.ez_send(peer, payload)
 
-    def deliver(self, sender_id: int, payload: Message):
-        if (sender_id, payload.message) not in self.delivered:
+    def deliver(self, payload: Message):
+        if payload.message not in self.delivered:
             self.status(
-                f"\033[1;32;48mDelivered from Node {sender_id}",
-                f"{payload.message} {self.paths.pop((sender_id, payload.message), set())}"
+                f"\033[1;32;48mDelivered",
+                f"{payload.message} {self.paths.pop(payload.message, set())}"
             )
-            self.delivered.add((sender_id, payload.message))
-            self.stop()
+            self.delivered.add(payload.message)
 
     @message_wrapper(Message)
     async def on_message(self, peer: Peer, payload: Message):
         peer.id = self.node_id_from_peer(peer)
         path = (*json.loads(payload.path), peer.id)
-        if len(path) == 1:
+        if payload.message in self.delivered:
+            self.status("Received duplicate message that already has been delivered.", f"{payload.message}")
+        elif len(path) == 1:
+            self.trusted_neighbours.add(peer.id)
             self.status(f"Received message directly from node {peer.id}", f"{payload.message}")
-            await self.broadcast(Message(payload.message, json.dumps(path)))
-            self.deliver(path[0], payload)
+            self.deliver(payload)
+            await self.broadcast(Message(payload.message))
+        elif set(path).intersection(self.trusted_neighbours):
+            self.status(f"Discarded message containing trusted neighbour in path", f"{payload.path}")
         elif len(set(path)) == len(path):  # there are no duplicate nodes in the path
             self.status(f"Received message from node {peer.id}", f"{payload.message} {payload.path}")
-            path_key = (path[0], payload.message)
-            if path_key in self.paths:
-                self.paths[path_key].add(path)
+            if payload.message in self.paths:
+                self.paths[payload.message].add(path)
                 # the message from node path[0] has been received from at least f + 1 distinct paths
-                if len(self.paths.get(path_key, ())) >= self.max_fault + 1:
-                    await self.broadcast(Message(payload.message, json.dumps(path)))
-                    self.deliver(path[0], payload)
+                if len(self.paths.get(payload.message, ())) >= self.max_fault + 1:
+                    self.deliver(payload)
+                    await self.broadcast(Message(payload.message))
                 else:
                     await self.broadcast(Message(payload.message, json.dumps(path)))
             else:
-                self.paths[path_key] = {path}
+                self.paths[payload.message] = {path}
                 await self.broadcast(Message(payload.message, json.dumps(path)))
         else:
-            self.status(f"\033[1;31;48mReceived erroneous message \"{payload.message}\" with duplicate nodes in path", str(path))
+            self.status(
+                f"\033[1;31;48mReceived erroneous message \"{payload.message}\" with duplicate nodes in path", str(path)
+            )
 
     def status(self, description: str, content: str = ""):
         print(f"[Node {self.node_id}] {description}{f': {content}' if content else ''}")

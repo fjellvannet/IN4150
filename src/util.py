@@ -22,6 +22,7 @@ if __name__ == '__main__':
         nodes = {}
         baseport = 9090
         connections = {}
+        k = 9
 
         # Create a ring topology
         for i in range(args.num_nodes):
@@ -32,8 +33,10 @@ if __name__ == '__main__':
             n['environment']['TOPOLOGY'] = args.topology_file
             n['environment']['ALGORITHM'] = args.algorithm
             nodes[f'node{i}'] = n
-
-            connections[i] = [(i + 1) % args.num_nodes, (i - 1) % args.num_nodes]
+            if k == 2:
+                connections[i] = [(i + 1) % args.num_nodes, (i - 1) % args.num_nodes]
+            if k > 2:
+                connections[i] = list(sorted(set(range(args.num_nodes)) - {i}))
 
         content['services'] = nodes
 

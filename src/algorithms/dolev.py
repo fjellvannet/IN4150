@@ -1,6 +1,8 @@
 import asyncio
 import json
+from multiprocessing import Process
 import random
+import time
 import yaml
 
 from ipv8.messaging.payload_dataclass import overwrite_dataclass
@@ -42,11 +44,18 @@ class DolevProtocol(DistributedAlgorithm):
         with open("messages/dolev.yaml", "r") as f:
             msgs = yaml.safe_load(f)
             for msg in msgs.get(self.node_id, ()):
-                await self.send_after(Message(msg["message"]), msg["timeout"])
+                p = Process(
+                    target=self.send_after,
+                    args=(Message(msg["message"]), msg["timeout"]),
+                )
+                p.start()
 
-    async def send_after(self, msg: Message, timeout: int):
-        await asyncio.sleep(timeout)
+    def send_after(self, msg: Message, timeout: int):
+        time.sleep(timeout)
         for node in self.nodes.values():
+            self.status(
+                f"Broadcasting to {self.node_id_from_peer(node)}", f"{msg.message}"
+            )
             self.ez_send(node, msg)
 
     async def broadcast(self, payload: Message):
@@ -63,7 +72,6 @@ class DolevProtocol(DistributedAlgorithm):
                 f"{payload.message} {self.paths.pop((sender_id, payload.message), set())}",
             )
             self.delivered.add((sender_id, payload.message))
-            self.stop()
 
     @message_wrapper(Message)
     async def on_message(self, peer: Peer, payload: Message):

@@ -1,4 +1,4 @@
 0:
 - {timeout: 0, message: "Hello there!"}
-4:
-- {timeout: 4, message: "You're a bold one!"}
+1:
+- {timeout: 10, message: "You're a bold one!"}

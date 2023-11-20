@@ -41,12 +41,12 @@ class DolevProtocol(DistributedAlgorithm):
         # read what to send
         with open("messages/dolev.yaml", "r") as f:
             msgs = yaml.safe_load(f)
-            for msg in msgs[self.node_id]:
-                snd = self.send_after(Message(msg.message), msg.timeout)
+            for msg in msgs.get(self.node_id, ()):
+                await self.send_after(Message(msg["message"]), msg["timeout"])
 
     async def send_after(self, msg: Message, timeout: int):
         await asyncio.sleep(timeout)
-        for node in self.nodes.items():
+        for node in self.nodes.values():
             self.ez_send(node, msg)
 
     async def broadcast(self, payload: Message):

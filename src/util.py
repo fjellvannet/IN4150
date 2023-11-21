@@ -2,6 +2,8 @@ import yaml
 import copy
 import argparse
 
+from topo_generator import generate_connections
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         prog='Scale the docker-compose file',
@@ -21,10 +23,13 @@ if __name__ == '__main__':
 
         nodes = {}
         baseport = 9090
-        connections = {}
-        k = 9
+        k = 3
+        if k == 2:
+            connections = dict((i, [(i + 1) % args.num_nodes, (i - 1) % args.num_nodes]) for i in range(args.num_nodes))
+        else:
+            connections = dict(enumerate(generate_connections(args.num_nodes, k)))
 
-        # Create a ring topology
+        # Create a topology
         for i in range(args.num_nodes):
             n = copy.deepcopy(node)
             n['ports'] = [f'{baseport + i}:{baseport + i}']
@@ -33,10 +38,6 @@ if __name__ == '__main__':
             n['environment']['TOPOLOGY'] = args.topology_file
             n['environment']['ALGORITHM'] = args.algorithm
             nodes[f'node{i}'] = n
-            if k == 2:
-                connections[i] = [(i + 1) % args.num_nodes, (i - 1) % args.num_nodes]
-            if k > 2:
-                connections[i] = list(sorted(set(range(args.num_nodes)) - {i}))
 
         content['services'] = nodes
 

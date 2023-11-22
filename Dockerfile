@@ -12,5 +12,5 @@ RUN pip install wheel
 RUN pip install -r requirements.txt
 COPY src /home/python/src
 COPY topologies /home/python/topologies
-COPY messages /home/python/messages
+COPY config /home/python/config
 CMD python -u src/run.py $PID $TOPOLOGY $ALGORITHM -docker

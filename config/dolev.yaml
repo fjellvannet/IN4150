@@ -2,7 +2,6 @@
   messages:
    - message: "Hello there!"
      timeout: 0
-
 1:
   messages:
     - message: "You're a bold one!"

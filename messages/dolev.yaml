@@ -1,4 +1,11 @@
 0:
-- {timeout: 0, message: "Hello there!"}
+- timeout: 0
+  message: "Hello there!"
 1:
-- {timeout: 10, message: "You're a bold one!"}
+- timeout: 10
+  message: 
+    message: "You're a bold one!"
+    sender: 0
+    path:
+      - 0
+      - 2

@@ -12,7 +12,7 @@ def generate_connections(n, k):
             id_  # only keep the node's id, available_nodes doesn't need a reference to each node's connections
             for id_, conns in sorted(  # sort nodes by the number of connections they already have - fewest first
                 # get nodes > current node with their connections in random order
-                random.sample(tuple(enumerate(connections[node + 1:], node + 1)), n - node - 1),
+                random.sample(tuple(enumerate(connections[node + 1 :], node + 1)), n - node - 1),
                 # tuple(enumerate(connections[node + 1:], node + 1)),  # keep this line to turn off random if you prefer
                 key=lambda x: len(x[1]),  # stable sorting -> the nodes with the same number of conns are still random
             )
@@ -34,7 +34,9 @@ def generate_connections(n, k):
                         ),
                         key=lambda x: len(x[1]),  # stable sorting -> nodes with the same number of conns still random
                     )
-                )[: k - len(available_nodes) - len(connections[node])],  # only keep necessary number of conn candidates
+                )[
+                    : k - len(available_nodes) - len(connections[node])
+                ],  # only keep necessary number of conn candidates
             )
         elif available_nodes and k - len(connections[node]) > 0:  # normal case - enough nodes available for connection
             new_conns = available_nodes[: k - len(connections[node])]  # connect to necessary number of available nodes

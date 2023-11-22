@@ -2,10 +2,9 @@
 - timeout: 0
   message: "Hello there!"
 1:
-- timeout: 10
-  message: 
-    message: "You're a bold one!"
-    sender: 0
-    path:
-      - 0
-      - 2
+- timeout: 1
+  message: "You're a bold one!"
+  sender: 0
+  path:
+    - 0
+    - 2

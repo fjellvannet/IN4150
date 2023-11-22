@@ -9,7 +9,7 @@ from ipv8.lazy_community import lazy_wrapper
 from ipv8.messaging.serialization import Payload
 from ipv8.types import Peer, LazyWrappedHandler, MessageHandlerFunction
 
-DataclassPayload = typing.TypeVar('DataclassPayload')
+DataclassPayload = typing.TypeVar("DataclassPayload")
 AnyPayload = typing.Union[Payload, DataclassPayload]
 
 
@@ -31,7 +31,7 @@ class DistributedAlgorithm(Community):
         return next((key for key, p in self.nodes.items() if p == peer), None)
 
     async def started(
-            self, node_id: int, connections: List[Tuple[int, int]], event: Event, use_localhost: bool = True
+        self, node_id: int, connections: List[Tuple[int, int]], event: Event, use_localhost: bool = True
     ) -> None:
         self.event = event
         self.node_id = node_id
@@ -52,9 +52,7 @@ class DistributedAlgorithm(Community):
             conn_nodes = []
 
             for node_id, node_port in self.connections:
-                conn_nodes = [
-                    p for p in self.get_peers() if p.address[1] == node_port
-                ]
+                conn_nodes = [p for p in self.get_peers() if p.address[1] == node_port]
                 if len(conn_nodes) == 0:
                     return
                 valid = True
@@ -62,25 +60,20 @@ class DistributedAlgorithm(Community):
             if not valid:
                 return
             self.cancel_pending_task("ensure_nodes_connected")
-            print(f'[Node {self.node_id}] Starting')
-            self.register_anonymous_task(
-                "delayed_start", self.on_start, delay=self.on_start_delay
-            )
+            print(f"[Node {self.node_id}] Starting")
+            self.register_anonymous_task("delayed_start", self.on_start, delay=self.on_start_delay)
 
-        self.register_task(
-            "ensure_nodes_connected", _ensure_nodes_connected, interval=.5, delay=1
-        )
+        self.register_task("ensure_nodes_connected", _ensure_nodes_connected, interval=0.5, delay=1)
 
     def on_start(self):
         pass
 
     def stop(self, delay: int = 0):
-
         async def delayed_stop():
             print(f"[Node {self.node_id}] Stopping algorithm")
             self.event.set()
 
-        self.register_anonymous_task('delayed_stop', delayed_stop, delay=delay)
+        self.register_anonymous_task("delayed_stop", delayed_stop, delay=delay)
 
     def ez_send(self, peer: Peer, *payloads: AnyPayload, **kwargs) -> None:
         super().ez_send(peer, *payloads, **kwargs)

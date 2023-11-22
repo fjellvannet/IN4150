@@ -34,16 +34,17 @@ class DolevProtocol(DistributedAlgorithm):
     def __init__(self, settings: CommunitySettings) -> None:
         super().__init__(settings)
         self.add_message_handler(Message, self.on_message)
-        self.paths = {}
+        self.message_info = {}
         self.delivered = set()
         self.max_fault = 2
         self.md = False
 
     async def on_start(self):
         # read what to send
-        with open("messages/dolev.yaml", "r") as f:
-            msgs = yaml.safe_load(f)
-            for msg in msgs.get(self.node_id, ()):
+        with open("config/dolev.yaml", "r") as f:
+            node_configs = yaml.safe_load(f)
+        for node in node_configs.get(self.node_id, ()):
+            for msg in node.get("messages", ()):
                 p = Process(
                     target=self.dolev_broadcast,
                     args=(
@@ -67,12 +68,13 @@ class DolevProtocol(DistributedAlgorithm):
             self.ez_send(peer, payload)
 
     def dolev_deliver(self, payload: Message):
-        if (payload.sender, payload.message) not in self.delivered:
+        path_key = (payload.sender, hash(payload.message))
+        if path_key not in self.delivered:
             self.status(
                 f"\033[1;32;48mDelivered from Node {payload.sender}",
-                f"{payload.message} {self.paths.pop((payload.sender, payload.message), set())}",
+                f"{payload.message} {self.message_info.pop((payload.sender, payload.message), set())}",
             )
-            self.delivered.add((payload.sender, payload.message))
+            self.delivered.add(path_key)
 
     @message_wrapper(Message)
     async def on_message(self, peer: Peer, payload: Message):
@@ -80,24 +82,25 @@ class DolevProtocol(DistributedAlgorithm):
         path = (*json.loads(payload.path), peer.id)
         if self.md and len(path) == 1 and peer.id == payload.sender:
             self.status(f"Received message directly from node {peer.id}", f"{payload.message}")
-            await self.send(Message(payload.message, json.dumps(path)))
             self.dolev_deliver(payload)
+            await self.send(Message(payload.message, payload.sender))
         elif len(set(path)) == len(path):  # there are no duplicate nodes in the path
             self.status(
                 f"Received message from node {peer.id}",
                 f"{payload.message} {payload.path}",
             )
-            path_key = (payload.sender, payload.message)
-            if path_key in self.paths:
-                self.paths[path_key].add(path)
+            path_key = (payload.sender, hash(payload.message))
+            if path_key in self.message_info:
+                self.message_info[path_key]["paths"].add(path)
+
                 # the message from node path[0] has been received from at least f + 1 distinct paths
-                if len(self.paths.get(path_key, ())) >= self.max_fault + 1:
-                    await self.send(Message(payload.message, payload.sender, json.dumps(path)))
+                if len(self.message_info.get(path_key, ())) >= self.max_fault + 1:
                     self.dolev_deliver(payload)
+                    await self.send(Message(payload.message, payload.sender, json.dumps(() if self.md else path)))
                 else:
                     await self.send(Message(payload.message, payload.sender, json.dumps(path)))
             else:
-                self.paths[path_key] = {path}
+                self.message_info[path_key] = {"paths": {path}, "neighbours": set()}
                 await self.send(Message(payload.message, payload.sender, json.dumps(path)))
         else:
             self.status(

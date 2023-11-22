@@ -1,0 +1,15 @@
+0:
+  messages:
+   - message: "Hello there!"
+     timeout: 0
+
+1:
+  messages:
+    - message: "You're a bold one!"
+      timeout: 1
+      sender: 0
+      path:
+      - 0
+      - 2
+
+

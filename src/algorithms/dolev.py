@@ -131,15 +131,19 @@ class DolevProtocol(DistributedAlgorithm):
 
     def disjoint_add(self, key, path):
         s_path = set(path)
+        rm = []
         for dp in self.message_info[key]['paths']:
             s_dp = set(dp)
-            if s_dp.intersection(s_path):
-                # path not disjoint
-                if len(s_path) < len(s_dp):
-                    self.message_info[key]['paths'].remove(dp)
-                    self.message_info[key]['paths'].add(path)
+            if s_path.issubset(s_dp):
+                # s_path smaller than s_dp
+                rm.append(dp)
+            if s_dp.issubset(s_path):
+                # s_path is not relevant
                 return
+        # add s_path and remove unnecessary paths
         self.message_info[key]['paths'].add(path)
+        for dp in rm:
+            self.message_info[key]['paths'].remove(dp)
 
 
     def status(self, description: str, content: str = ""):
